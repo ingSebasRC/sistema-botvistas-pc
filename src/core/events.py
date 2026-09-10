@@ -5,7 +5,7 @@ from PySide6.QtCore import QObject, Signal
 
 class EventBridge(QObject):
     """
-    Thread-safe signal dispatcher bridging FastAPI/WebSockets and the PySide6 UI.
+    Thread-safe signal dispatcher bridging FastAPI and the PySide6 UI.
     Any event triggered by network calls emits signals handled in the main Qt thread.
     """
 

@@ -6,6 +6,7 @@ from pydantic import BaseModel
 
 from src.models.device import Device
 from src.services.device_service import device_service
+from adb_manager import AdbError
 
 router = APIRouter(prefix="/api/devices", tags=["Devices"])
 
@@ -20,8 +21,11 @@ class DeviceRegisterRequest(BaseModel):
 
 @router.get("", response_model=List[Device])
 async def list_devices():
-    """Retrieve all registered Android devices and their statuses."""
-    return device_service.get_all_devices()
+    """Discover devices directly through the local USB ADB server."""
+    try:
+        return device_service.refresh_usb_devices()
+    except AdbError as exc:
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(exc)) from exc
 
 
 @router.get("/{device_id}", response_model=Device)

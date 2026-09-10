@@ -16,7 +16,7 @@ def main():
 
     logger.info("Initializing BotVistas PC Server and Control Panel...")
 
-    # 2. Start FastAPI & WebSocket server in background thread
+    # 2. Start the local FastAPI server used for USB stream delivery
     server_thread.start()
 
     # 3. Create & show main window

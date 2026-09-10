@@ -5,6 +5,7 @@ from typing import Dict, List, Optional
 from src.core.events import event_bridge
 from src.core.logger import logger
 from src.models.device import Device, DeviceStatus
+from adb_manager import AdbDevice, adb_manager
 
 
 class DeviceService:
@@ -83,6 +84,11 @@ class DeviceService:
                 device.status = DeviceStatus.CONNECTED
                 event_bridge.device_registered.emit(device.model_dump())
 
+    def clear_current_task(self, device_id: str) -> None:
+        """Clear a completed or cancelled task."""
+        if device_id in self._devices:
+            self._devices[device_id].current_task_id = None
+
     def get_device(self, device_id: str) -> Optional[Device]:
         """Retrieve a device by ID."""
         return self._devices.get(device_id)
@@ -90,6 +96,26 @@ class DeviceService:
     def get_all_devices(self) -> List[Device]:
         """Get all registered devices."""
         return list(self._devices.values())
+
+    def refresh_usb_devices(self) -> List[Device]:
+        """Synchronize the registry with ``adb devices -l`` over USB."""
+        detected = adb_manager.devices()
+        active_serials = {item.serial for item in detected}
+        for item in detected:
+            if item.state == "device":
+                self.register_device(
+                    device_id=item.serial,
+                    name=item.model,
+                    ip_address="USB/ADB",
+                    battery_level=item.battery_level,
+                )
+            else:
+                # Keep unauthorized/offline phones visible, but never dispatch to them.
+                self.register_device(device_id=item.serial, name=item.model, ip_address="USB/ADB")
+                self.mark_disconnected(item.serial)
+        for serial in set(self._devices) - active_serials:
+            self.mark_disconnected(serial)
+        return self.get_all_devices()
 
 
 device_service = DeviceService()

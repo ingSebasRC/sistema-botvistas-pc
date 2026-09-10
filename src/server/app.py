@@ -1,16 +1,17 @@
-"""FastAPI Application factory and WebSocket endpoint definition."""
+"""FastAPI application for the local USB control panel."""
 
 import asyncio
 from contextlib import asynccontextmanager
 from typing import Optional
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from src.core.config import settings
 from src.core.logger import logger
 from src.server.routes.devices import router as devices_router
 from src.server.routes.tasks import router as tasks_router
-from src.server.ws_manager import ws_manager
+from src.server.routes.stream import router as stream_router
+from stream_manager import stream_manager
 
 # Active server event loop reference
 _server_event_loop: Optional[asyncio.AbstractEventLoop] = None
@@ -38,8 +39,9 @@ async def lifespan(app: FastAPI):
     """Server lifespan context manager."""
     global _server_event_loop
     _server_event_loop = asyncio.get_running_loop()
-    logger.info(f"FastAPI Server running on {settings.host}:{settings.port} (LAN IP: {settings.local_ip})")
+    logger.info(f"FastAPI USB server running on {settings.host}:{settings.port}")
     yield
+    stream_manager.stop_all()
     _server_event_loop = None
     logger.info("FastAPI Server shutting down...")
 
@@ -49,7 +51,7 @@ def create_app() -> FastAPI:
     app = FastAPI(
         title=settings.app_name,
         version=settings.version,
-        description="Local Server for Android Automation Multi-Device Management",
+        description="USB/ADB control and scrcpy live video for Android devices",
         lifespan=lifespan
     )
 
@@ -65,6 +67,7 @@ def create_app() -> FastAPI:
     # Include REST routers
     app.include_router(devices_router)
     app.include_router(tasks_router)
+    app.include_router(stream_router)
 
     # Health Check
     @app.get("/health")
@@ -76,20 +79,6 @@ def create_app() -> FastAPI:
             "local_ip": settings.local_ip,
             "port": settings.port
         }
-
-    # WebSocket Endpoint for Android devices
-    @app.websocket("/ws/{device_id}")
-    async def websocket_endpoint(websocket: WebSocket, device_id: str):
-        await ws_manager.connect(device_id, websocket)
-        try:
-            while True:
-                data = await websocket.receive_text()
-                await ws_manager.handle_incoming(device_id, data)
-        except WebSocketDisconnect:
-            ws_manager.disconnect(device_id)
-        except Exception as e:
-            logger.error(f"WebSocket error on device {device_id}: {e}")
-            ws_manager.disconnect(device_id)
 
     return app
 

@@ -1,6 +1,6 @@
 """Main Application Window."""
 
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt, QTimer
 from PySide6.QtGui import QCloseEvent, QIcon
 from PySide6.QtWidgets import (
     QMainWindow,
@@ -15,6 +15,8 @@ from src.ui.components.device_table import DeviceTable
 from src.ui.components.log_viewer import LogViewer
 from src.ui.components.server_status import ServerStatusWidget
 from src.ui.components.task_panel import TaskPanel
+from src.services.device_service import device_service
+from adb_manager import AdbError
 
 
 class MainWindow(QMainWindow):
@@ -26,6 +28,17 @@ class MainWindow(QMainWindow):
         self.resize(1100, 750)
         self.setMinimumSize(950, 600)
         self._setup_ui()
+        self._usb_refresh_timer = QTimer(self)
+        self._usb_refresh_timer.timeout.connect(self._refresh_usb_devices)
+        self._usb_refresh_timer.start(3_000)
+        self._refresh_usb_devices()
+
+    def _refresh_usb_devices(self) -> None:
+        """Refresh the table from ADB; USB discovery replaces WebSocket registration."""
+        try:
+            device_service.refresh_usb_devices()
+        except AdbError as exc:
+            logger.warning(f"No se pudo consultar ADB: {exc}")
 
     def _setup_ui(self) -> None:
         central_widget = QWidget(self)

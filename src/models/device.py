@@ -20,7 +20,7 @@ class Device(BaseModel):
     """Represents a connected Android device."""
     device_id: str = Field(..., description="Unique hardware or UUID identifier of the Android device")
     name: str = Field(default="Android Device", description="Friendly display name")
-    ip_address: str = Field(default="127.0.0.1", description="LAN IP address of the device")
+    ip_address: str = Field(default="USB/ADB", description="USB ADB transport")
     status: DeviceStatus = Field(default=DeviceStatus.CONNECTED, description="Current device status")
     battery_level: Optional[int] = Field(default=None, description="Battery percentage (0-100)")
     app_version: Optional[str] = Field(default=None, description="Installed APK version")

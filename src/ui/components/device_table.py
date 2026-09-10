@@ -76,8 +76,8 @@ class DeviceTable(QWidget):
         event_bridge.device_status_updated.connect(self._on_device_status_updated)
 
     def _format_status_badge(self, status: str) -> str:
-        status_lower = status.lower()
-        if status_lower in ("connected", "idle"):
+        status_lower = str(status).lower()
+        if self._is_ready_status(status_lower):
             return "🟢 Disponible"
         elif status_lower == "running":
             return "⚡ Ejecutando"
@@ -91,8 +91,8 @@ class DeviceTable(QWidget):
     def _create_status_label(self, status: str) -> QLabel:
         lbl = QLabel(self._format_status_badge(status))
         lbl.setAlignment(Qt.AlignCenter)
-        status_lower = status.lower()
-        if status_lower in ("connected", "idle"):
+        status_lower = str(status).lower()
+        if self._is_ready_status(status_lower):
             lbl.setStyleSheet("color: #48BB78; font-weight: bold; padding: 2px 6px;")
         elif status_lower == "running":
             lbl.setStyleSheet("color: #63B3ED; font-weight: bold; padding: 2px 6px;")
@@ -119,7 +119,8 @@ class DeviceTable(QWidget):
 
             # Checkbox in column 0
             chk = QCheckBox()
-            chk.setChecked(True)
+            # A newly discovered USB phone is selected only when it is usable.
+            chk.setChecked(self._is_ready_status(dev_data.get("status", "connected")))
             chk_widget = QWidget()
             chk_layout = QHBoxLayout(chk_widget)
             chk_layout.addWidget(chk)
@@ -151,6 +152,9 @@ class DeviceTable(QWidget):
         if device_id in self._row_map:
             row = self._row_map[device_id]
             self.table.setCellWidget(row, 4, self._create_status_label(DeviceStatus.DISCONNECTED.value))
+            checkbox = self.table.cellWidget(row, 0).findChild(QCheckBox)
+            if checkbox:
+                checkbox.setChecked(False)
 
     @Slot(dict)
     def _on_device_status_updated(self, payload: dict) -> None:
@@ -185,7 +189,7 @@ class DeviceTable(QWidget):
                     chk.setChecked(False)
 
     def get_selected_device_ids(self) -> List[str]:
-        """Return list of selected device_ids."""
+        """Return checked USB devices whose state is Disponible/Conectado."""
         selected = []
         for r in range(self.table.rowCount()):
             cell_widget = self.table.cellWidget(r, 0)
@@ -193,6 +197,21 @@ class DeviceTable(QWidget):
                 chk = cell_widget.findChild(QCheckBox)
                 if chk and chk.isChecked():
                     id_item = self.table.item(r, 2)
-                    if id_item:
+                    device = device_service.get_device(id_item.text()) if id_item else None
+                    status_widget = self.table.cellWidget(r, 4)
+                    displayed_status = status_widget.text() if isinstance(status_widget, QLabel) else ""
+                    if id_item and (
+                        (device and self._is_ready_status(device.status.value)) or
+                        self._is_ready_status(displayed_status)
+                    ):
                         selected.append(id_item.text())
         return selected
+
+    @staticmethod
+    def _is_ready_status(status: str) -> bool:
+        """Accept internal states and the user-facing '1 Disponible' label."""
+        normalized = str(status).strip().lower()
+        return (
+            normalized in {"connected", "conectado", "idle", "disponible", "1 disponible"}
+            or "disponible" in normalized
+        )

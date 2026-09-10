@@ -61,9 +61,9 @@ class ServerStatusWidget(QFrame):
         """)
         layout.addWidget(self.status_badge)
 
-        # Server LAN IP & Port Info
+        # Local FastAPI endpoint for USB video frames
         server_info_layout = QVBoxLayout()
-        ip_label = QLabel("IP Servidor (Wi-Fi / LAN):")
+        ip_label = QLabel("Servidor local USB:")
         ip_label.setStyleSheet("color: #A0AEC0; font-size: 11px;")
         self.ip_value = QLabel(f"{settings.local_ip}:{settings.port}")
         self.ip_value.setStyleSheet("font-size: 14px; font-weight: bold; color: #63B3ED;")

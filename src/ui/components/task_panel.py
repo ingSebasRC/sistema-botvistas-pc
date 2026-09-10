@@ -90,13 +90,18 @@ class TaskPanel(QGroupBox):
 
         selected_devices = self._get_selected_devices()
         if not selected_devices:
+            logger.warning("Selecciona al menos un dispositivo de la lista.")
             QMessageBox.warning(self, "Dispositivos no seleccionados", "Selecciona al menos un dispositivo en la tabla.")
             return
 
+        # QComboBox may return either the Platform enum or its string value,
+        # depending on the Qt binding/serialization path.  Normalise it before
+        # logging and dispatching so the click handler cannot fail on `.value`.
         platform = self.combo_platform.currentData()
+        platform = getattr(platform, "value", platform)
         duration = self.spin_duration.value()
 
-        logger.info(f"Dispatched task to {len(selected_devices)} devices: {platform.value} -> {target_profile}")
+        logger.info(f"Enviando tarea ADB a {len(selected_devices)} dispositivo(s): {platform} -> {target_profile}")
 
         # Run coroutine on server event loop
         run_async_coro(task_service.start_task(
